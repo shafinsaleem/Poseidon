@@ -15,9 +15,9 @@ from ckks.ckks_bootstrapping_context import CKKSBootstrappingContext
 
 # Initialize CKKS Parameters
 poly_degree = 2048
-ciph_modulus = 1 << 600
-big_modulus = 1 << 1200
-scaling_factor = 1 << 40
+ciph_modulus = 1 << 50
+big_modulus = 1 << 120
+scaling_factor = 1 << 30
 params = CKKSParameters(poly_degree=poly_degree,
                         ciph_modulus=ciph_modulus,
                         big_modulus=big_modulus,

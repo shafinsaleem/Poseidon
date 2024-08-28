@@ -50,7 +50,6 @@ class CKKSEvaluator:
         Returns:
             A Ciphertext which is the sum of the two ciphertexts.
         """
-        print("Adding two ciphertexts...")
         assert isinstance(ciph1, Ciphertext)
         assert isinstance(ciph2, Ciphertext)
         assert ciph1.scaling_factor == ciph2.scaling_factor, "Scaling factors are not equal. " \
@@ -66,7 +65,6 @@ class CKKSEvaluator:
         c0 = c0.mod_small(modulus)
         c1 = ciph1.c1.add(ciph2.c1, modulus)
         c1 = c1.mod_small(modulus)
-        print("Addition complete.")
         return Ciphertext(c0, c1, ciph1.scaling_factor, modulus)
 
     def add_plain(self, ciph, plain):
@@ -134,7 +132,6 @@ class CKKSEvaluator:
         Returns:
             A Ciphertext which is the product of the two ciphertexts.
         """
-        print("Multiplying two ciphertexts...")
         assert isinstance(ciph1, Ciphertext)
         assert isinstance(ciph2, Ciphertext)
         assert ciph1.modulus == ciph2.modulus, "Moduli are not equal. " \
@@ -153,7 +150,6 @@ class CKKSEvaluator:
 
         c2 = ciph1.c1.multiply(ciph2.c1, modulus, crt=self.crt_context)
         c2 = c2.mod_small(modulus)
-        print("Multiplication complete.")
 
         return self.relinearize(relin_key, c0, c1, c2, ciph1.scaling_factor * ciph2.scaling_factor,
                                 modulus)
@@ -170,7 +166,6 @@ class CKKSEvaluator:
         Returns:
             A Ciphertext which is the product of the ciphertext and plaintext.
         """
-        print("Multiplying ciphertext with plaintext...")
         assert isinstance(ciph, Ciphertext)
         assert isinstance(plain, Plaintext)
 
@@ -179,7 +174,6 @@ class CKKSEvaluator:
 
         c1 = ciph.c1.multiply(plain.poly, ciph.modulus, crt=self.crt_context)
         c1 = c1.mod_small(ciph.modulus)
-        print("Multiplication with plaintext complete.")
 
         return Ciphertext(c0, c1, ciph.scaling_factor * plain.scaling_factor, ciph.modulus)
 
@@ -199,8 +193,6 @@ class CKKSEvaluator:
         Returns:
             A Ciphertext which has only two components.
         """
-        print("Performing relinearization...")
-        
         new_c0 = relin_key.p0.multiply(c2, modulus * self.big_modulus, crt=self.crt_context)
         new_c0 = new_c0.mod_small(modulus * self.big_modulus)
         new_c0 = new_c0.scalar_integer_divide(self.big_modulus)
@@ -212,7 +204,6 @@ class CKKSEvaluator:
         new_c1 = new_c1.scalar_integer_divide(self.big_modulus)
         new_c1 = new_c1.add(c1, modulus)
         new_c1 = new_c1.mod_small(modulus)
-        print("Relinearization complete.")
 
         return Ciphertext(new_c0, new_c1, new_scaling_factor, modulus)
 
@@ -229,12 +220,8 @@ class CKKSEvaluator:
         Returns:
             Rescaled ciphertext.
         """
-        print(f"Rescaling ciphertext with scaling factor {scaling_factor}...")
-        
         c0 = ciph.c0.scalar_integer_divide(division_factor)
         c1 = ciph.c1.scalar_integer_divide(division_factor)
-        print("Rescaling complete.")
-
         return Ciphertext(c0, c1, ciph.scaling_factor // division_factor,
                           ciph.modulus // division_factor)
 
@@ -251,11 +238,9 @@ class CKKSEvaluator:
         Returns:
             Rescaled ciphertext.
         """
-        print(f"Lowering modulus of ciphertext to {division_factor}...")
         new_modulus = ciph.modulus // division_factor
         c0 = ciph.c0.mod_small(new_modulus)
         c1 = ciph.c1.mod_small(new_modulus)
-        print("Modulus lowering complete.")
         return Ciphertext(c0, c1, ciph.scaling_factor, new_modulus)
 
     def switch_key(self, ciph, key):
@@ -299,12 +284,9 @@ class CKKSEvaluator:
             A Ciphertext which is the encryption of the rotation of the original
             plaintext.
         """
-        print(f"Rotating ciphertext by steps...")
-        
         rot_ciph0 = ciph.c0.rotate(rotation)
         rot_ciph1 = ciph.c1.rotate(rotation)
         rot_ciph = Ciphertext(rot_ciph0, rot_ciph1, ciph.scaling_factor, ciph.modulus)
-        print(f"Rotation by steps complete.")        
         return self.switch_key(rot_ciph, rot_key.key)
 
     def conjugate(self, ciph, conj_key):
@@ -320,12 +302,10 @@ class CKKSEvaluator:
             A Ciphertext which is the encryption of the conjugation of the original
             plaintext.
         """
-        print("Conjugating ciphertext...")
+
         conj_ciph0 = ciph.c0.conjugate().mod_small(ciph.modulus)
         conj_ciph1 = ciph.c1.conjugate().mod_small(ciph.modulus)
         conj_ciph = Ciphertext(conj_ciph0, conj_ciph1, ciph.scaling_factor, ciph.modulus)
-        print("Conjugation complete.")
-
         return self.switch_key(conj_ciph, conj_key)
 
     def multiply_matrix_naive(self, ciph, matrix, rot_keys, encoder):
@@ -372,7 +352,6 @@ class CKKSEvaluator:
         """
 
         # Compute two factors of matrix_len (a power of two), both near its square root.
-        print(f"Performing matrix multiplication with matrix of shape {len(matrix)}x{len(matrix[0])}...")
         matrix_len = len(matrix)
         matrix_len_factor1 = int(sqrt(matrix_len))
         if matrix_len != matrix_len_factor1 * matrix_len_factor1:
@@ -407,7 +386,6 @@ class CKKSEvaluator:
                 outer_sum = rotated_sum
 
         outer_sum = self.rescale(outer_sum, self.scaling_factor)
-        print("Matrix multiplication complete.")
         return outer_sum
 
     # BOOTSTRAPPING
@@ -423,10 +401,8 @@ class CKKSEvaluator:
         Returns:
             Plaintext with constant value.
         """
-        print(f"Creating constant plaintext with const {const}...")
         plain_vec = [0] * (self.degree)
         plain_vec[0] = int(const * self.scaling_factor)
-        print("Constant plaintext creation complete.")
         return Plaintext(Polynomial(self.degree, plain_vec), self.scaling_factor)
 
     def create_complex_constant_plain(self, const, encoder):
@@ -604,7 +580,6 @@ class CKKSEvaluator:
         Returns:
             Ciphertext for exponential.
         """
-        print(f"Starting exponentiation with constant {const}...")
         num_iterations = self.boot_context.num_taylor_iterations
         const_plain = self.create_complex_constant_plain(const / 2**num_iterations, encoder)
         ciph = self.multiply_plain(ciph, const_plain)
@@ -614,7 +589,7 @@ class CKKSEvaluator:
         for _ in range(num_iterations):
             ciph = self.multiply(ciph, ciph, relin_key)
             ciph = self.rescale(ciph, self.scaling_factor)
-        print("Exponentiation complete.")
+
         return ciph
 
     def bootstrap(self, ciph, rot_keys, conj_key, relin_key, encoder):
@@ -633,7 +608,6 @@ class CKKSEvaluator:
         Returns:
             Ciphertext for exponential.
         """
-        print("Starting bootstrapping...")
         # Raise modulus.
         old_modulus = ciph.modulus
         old_scaling_factor = self.scaling_factor
@@ -641,7 +615,6 @@ class CKKSEvaluator:
 
         # Coeff to slot.
         ciph0, ciph1 = self.coeff_to_slot(ciph, rot_keys, conj_key, encoder)
-        print("Bootstrapping step: Coeff_to_slot complete.")
 
         # Exponentiate.
         const = self.scaling_factor / old_modulus * 2 * math.pi * 1j
@@ -649,7 +622,6 @@ class CKKSEvaluator:
         ciph_neg_exp0 = self.conjugate(ciph_exp0, conj_key)
         ciph_exp1 = self.exp(ciph1, const, relin_key, encoder)
         ciph_neg_exp1 = self.conjugate(ciph_exp1, conj_key)
-        print("Bootstrapping step: Exponentiation complete.")
 
         # Compute sine.
         ciph_sin0 = self.subtract(ciph_exp0, ciph_neg_exp0)
@@ -666,7 +638,6 @@ class CKKSEvaluator:
         # Slot to coeff.
         old_ciph = ciph
         ciph = self.slot_to_coeff(ciph0, ciph1, rot_keys, encoder)
-        print("Bootstrapping step: Slot_to_coeff complete.")
 
         # Reset scaling factor.
         self.scaling_factor = old_scaling_factor

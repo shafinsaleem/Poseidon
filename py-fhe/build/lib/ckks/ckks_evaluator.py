@@ -166,16 +166,15 @@ class CKKSEvaluator:
         Returns:
             A Ciphertext which is the product of the ciphertext and plaintext.
         """
-        print("Starting multiply_plain...")
         assert isinstance(ciph, Ciphertext)
         assert isinstance(plain, Plaintext)
-        print("assertions complete.")
+
         c0 = ciph.c0.multiply(plain.poly, ciph.modulus, crt=self.crt_context)
         c0 = c0.mod_small(ciph.modulus)
-        print("multiply_plain c0 complete.")
+
         c1 = ciph.c1.multiply(plain.poly, ciph.modulus, crt=self.crt_context)
         c1 = c1.mod_small(ciph.modulus)
-        print("multiply_plain c1 complete.")
+
         return Ciphertext(c0, c1, ciph.scaling_factor * plain.scaling_factor, ciph.modulus)
 
     def relinearize(self, relin_key, c0, c1, c2, new_scaling_factor, modulus):
@@ -353,59 +352,40 @@ class CKKSEvaluator:
         """
 
         # Compute two factors of matrix_len (a power of two), both near its square root.
-        print("Starting matrix multiplication...")
         matrix_len = len(matrix)
-        print("taking matrix factors")
         matrix_len_factor1 = int(sqrt(matrix_len))
         if matrix_len != matrix_len_factor1 * matrix_len_factor1:
             matrix_len_factor1 = int(sqrt(2 * matrix_len))
         matrix_len_factor2 = matrix_len // matrix_len_factor1
 
         # Compute rotations.
-        print("computing rotations")
         ciph_rots = [0] * matrix_len_factor1
         ciph_rots[0] = ciph
-        print("computing rotations loop")
         for i in range(1, matrix_len_factor1):
-            ciph_rots[i] = self.rotate(ciph, i, rot_keys[i])  # Rotate for non-zero shifts
+            ciph_rots[i] = self.rotate(ciph, i, rot_keys[i])
 
         # Compute sum.
         outer_sum = None
-        print("starting computing sum")
         for j in range(matrix_len_factor2):
             inner_sum = None
             shift = matrix_len_factor1 * j
-            print("next outer loop")
             for i in range(matrix_len_factor1):
-                print("matrix operation diagonal")
                 diagonal = util.matrix_operations.diagonal(matrix, shift + i)
-                print("matrix operation rotate")
                 diagonal = util.matrix_operations.rotate(diagonal, -shift)
-                print("diagonal encode")
                 diagonal_plain = encoder.encode(diagonal, self.scaling_factor)
-                print("multiply plain")
                 dot_prod = self.multiply_plain(ciph_rots[i], diagonal_plain)
-                
                 if inner_sum:
                     inner_sum = self.add(inner_sum, dot_prod)
                 else:
                     inner_sum = dot_prod
 
-            if shift == 0:
-                rotated_sum = inner_sum  # No rotation needed for shift=0
-            else:
-                print("rotating the inner sum")
-                rotated_sum = self.rotate(inner_sum, shift, rot_keys[shift])
-            
+            rotated_sum = self.rotate(inner_sum, shift, rot_keys[shift])
             if outer_sum:
-                print("adding outer sum in rotated sum")
                 outer_sum = self.add(outer_sum, rotated_sum)
             else:
                 outer_sum = rotated_sum
 
-        print("rescaling")
         outer_sum = self.rescale(outer_sum, self.scaling_factor)
-        print("rescaling complete")
         return outer_sum
 
     # BOOTSTRAPPING
@@ -457,40 +437,24 @@ class CKKSEvaluator:
             Two Ciphertexts which are transformed.
         """
         # Compute new ciphertexts.
-        print("Starting coeff_to_slot transformation...")
         s1 = self.multiply_matrix(ciph, self.boot_context.encoding_mat_conj_transpose0,
-                      rot_keys, encoder)
-        print("conjugating")
+                                  rot_keys, encoder)
         s2 = self.conjugate(ciph, conj_key)
-        print("multiplying s2")
         s2 = self.multiply_matrix(s2, self.boot_context.encoding_mat_transpose0, rot_keys,
-                      encoder)
-        print("adding s1 and s2")
+                                  encoder)
         ciph0 = self.add(s1, s2)
-        print("creating a plain constant")
         constant = self.create_constant_plain(1 / self.degree)
-        print("multiplying ciph0 with plain constant")
         ciph0 = self.multiply_plain(ciph0, constant)
-        print("rescaling ciph0")
         ciph0 = self.rescale(ciph0, self.scaling_factor)
-        print("we have a rescaled ciph0")
 
-        print("now performing operations on ciph1")
         s1 = self.multiply_matrix(ciph, self.boot_context.encoding_mat_conj_transpose1,
-                      rot_keys, encoder)
-        print("conjugating")
+                                  rot_keys, encoder)
         s2 = self.conjugate(ciph, conj_key)
-        print("multiplying s2")
         s2 = self.multiply_matrix(s2, self.boot_context.encoding_mat_transpose1, rot_keys,
-                      encoder)
-        print("adding s1 and s2")
+                                  encoder)
         ciph1 = self.add(s1, s2)
-        print("multiplying ciph1 with plain constant")
         ciph1 = self.multiply_plain(ciph1, constant)
-        print("rescaling ciph1")
         ciph1 = self.rescale(ciph1, self.scaling_factor)
-        print("we have rescaled ciph1")
-        print("Coeff_to_slot transformation complete.")
 
         return ciph0, ciph1
 
@@ -510,13 +474,12 @@ class CKKSEvaluator:
         Returns:
             Ciphertext which is transformed.
         """
-        print("Starting slot_to_coeff transformation...")
         s1 = self.multiply_matrix(ciph0, self.boot_context.encoding_mat0, rot_keys,
                                   encoder)
         s2 = self.multiply_matrix(ciph1, self.boot_context.encoding_mat1, rot_keys,
                                   encoder)
         ciph = self.add(s1, s2)
-        print("slot_to_coeff transformation complete.")
+
         return ciph
 
     def exp_taylor(self, ciph, relin_key, encoder):
@@ -645,59 +608,40 @@ class CKKSEvaluator:
         Returns:
             Ciphertext for exponential.
         """
-        print("Starting bootstrapping...")
         # Raise modulus.
         old_modulus = ciph.modulus
         old_scaling_factor = self.scaling_factor
         self.raise_modulus(ciph)
 
         # Coeff to slot.
-        print("reached coeff to slot")
         ciph0, ciph1 = self.coeff_to_slot(ciph, rot_keys, conj_key, encoder)
 
         # Exponentiate.
-        print("reached exponentiation")
         const = self.scaling_factor / old_modulus * 2 * math.pi * 1j
-        print("got the const")
         ciph_exp0 = self.exp(ciph0, const, relin_key, encoder)
-        print("got the ciph_exp0")
         ciph_neg_exp0 = self.conjugate(ciph_exp0, conj_key)
-        print("got the ciph_neg_exp0")
         ciph_exp1 = self.exp(ciph1, const, relin_key, encoder)
-        print("got the ciph_exp1")
         ciph_neg_exp1 = self.conjugate(ciph_exp1, conj_key)
-        print("got the ciph_neg_exp1")
 
         # Compute sine.
         ciph_sin0 = self.subtract(ciph_exp0, ciph_neg_exp0)
-        print("got the ciph_sin0")
         ciph_sin1 = self.subtract(ciph_exp1, ciph_neg_exp1)
-        print("got the ciph_sin1")
 
         # Scale answer.
         plain_const = self.create_complex_constant_plain(
-            old_modulus / self.scaling_factor * 0.25 / math.pi / 1j, encoder
-        )
-        print("got the plain_const")
+            old_modulus / self.scaling_factor * 0.25 / math.pi / 1j, encoder)
         ciph0 = self.multiply_plain(ciph_sin0, plain_const)
-        print("got the ciph0")
         ciph1 = self.multiply_plain(ciph_sin1, plain_const)
-        print("got the ciph1")
         ciph0 = self.rescale(ciph0, self.scaling_factor)
-        print("got the rescaled ciph0")
         ciph1 = self.rescale(ciph1, self.scaling_factor)
-        print("got the rescaled ciph1")
 
         # Slot to coeff.
         old_ciph = ciph
-        print("reached slot to coeff")
         ciph = self.slot_to_coeff(ciph0, ciph1, rot_keys, encoder)
-        print("got the ciph")
 
         # Reset scaling factor.
         self.scaling_factor = old_scaling_factor
         ciph.scaling_factor = self.scaling_factor
-        print("Bootstrapping complete.")
 
         print("------------ BOOTSTRAPPING MODULUS CHANGES -------------")
         print("Old modulus q: %d bits" % (int(math.log(old_modulus, 2))))
